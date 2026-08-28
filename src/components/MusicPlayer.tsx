@@ -11,46 +11,13 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ videoId, autoPlayTrigg
   const [isMuted, setIsMuted] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   
-  // HTML5 audio backup (Royalty free beautiful romantic Arabic/oriental wedding acoustic instrumental)
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const synthIntervalRef = useRef<any>(null);
-
-  // Initialize HTML5 Audio
-  useEffect(() => {
-    // Beautiful oriental romantic acoustic oud/strings instrumental mp3 stream
-    const audio = new Audio('https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=romantic-wedding-love-112199.mp3');
-    audio.loop = true;
-    audio.preload = 'auto';
-    audioRef.current = audio;
-
-    return () => {
-      audio.pause();
-      audio.src = '';
-    };
-  }, []);
-
-  // Soft romantic web audio chime/melody generator fallback
-  const startGentleChimes = () => {
-    try {
-      if (!audioContextRef.current) {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          audioContextRef.current = new AudioCtx();
-        }
-      }
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        audioContextRef.current.resume();
-      }
-    } catch {}
-  };
 
   const executePlay = async () => {
     setIsPlaying(true);
     setHasStarted(true);
 
-    // 1. YouTube Iframe command
+    // 1. YouTube Iframe command for Amr Diab
     try {
       const iframe = iframeRef.current;
       if (iframe && iframe.contentWindow) {
@@ -66,16 +33,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ videoId, autoPlayTrigg
     } catch (e) {
       console.warn('YT play postMessage error:', e);
     }
-
-    // 2. HTML5 Audio backup
-    if (audioRef.current) {
-      audioRef.current.muted = false;
-      audioRef.current.play().catch(() => {
-        // Browser gesture requirement handled on next interaction
-      });
-    }
-
-    startGentleChimes();
   };
 
   const executePause = () => {
@@ -92,15 +49,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ videoId, autoPlayTrigg
       }
     } catch (e) {
       console.warn('YT pause postMessage error:', e);
-    }
-
-    // 2. HTML5 Audio backup
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-
-    if (audioContextRef.current && audioContextRef.current.state === 'running') {
-      audioContextRef.current.suspend();
     }
   };
 
@@ -145,10 +93,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ videoId, autoPlayTrigg
     e.stopPropagation();
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
-
-    if (audioRef.current) {
-      audioRef.current.muted = nextMuted;
-    }
 
     try {
       const iframe = iframeRef.current;

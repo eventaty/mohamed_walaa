@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { CheckCircle2, MessageCircle, Send, User, Users, HeartHandshake, Sparkles } from 'lucide-react';
 import { WeddingDetails } from '../types';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface RsvpSectionProps {
   details: WeddingDetails;
@@ -16,7 +18,7 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({ details, onAddWish }) 
   const [customWish, setCustomWish] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!guestName.trim()) return;
 
@@ -29,6 +31,19 @@ export const RsvpSection: React.FC<RsvpSectionProps> = ({ details, onAddWish }) 
         colors: ['#D4AF37', '#E32636', '#FF9BB2', '#FFF6D6'],
       });
     } catch {}
+
+    // Save to Cloud Firestore
+    try {
+      await addDoc(collection(db, 'rsvps'), {
+        guestName: guestName.trim(),
+        guestsCount: attendance === 'attending' ? guestCount : 0,
+        attendance,
+        customWish: customWish.trim(),
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn('Firestore RSVP save note:', err);
+    }
 
     // Add to wishes board if message provided
     if (customWish.trim()) {

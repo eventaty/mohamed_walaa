@@ -14,41 +14,89 @@ import { FooterSection } from './components/FooterSection';
 import { defaultWeddingDetails, initialWishes } from './data/weddingData';
 import { WishMessage } from './types';
 import { Share2, MailOpen } from 'lucide-react';
+import { collection, onSnapshot, query, orderBy, addDoc, doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { db } from './lib/firebase';
 
 export default function App() {
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
-  const [wishes, setWishes] = useState<WishMessage[]>(() => {
-    const saved = localStorage.getItem('wedding_wishes_mohamed_walaa');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return initialWishes;
-      }
-    }
-    return initialWishes;
-  });
+  const [wishes, setWishes] = useState<WishMessage[]>(initialWishes);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  // Real-time Firestore synchronization for all guests
   useEffect(() => {
-    localStorage.setItem('wedding_wishes_mohamed_walaa', JSON.stringify(wishes));
-  }, [wishes]);
+    try {
+      const q = query(collection(db, 'wishes'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const fetchedWishes: WishMessage[] = snapshot.docs.map((docSnap) => {
+              const data = docSnap.data();
+              return {
+                id: docSnap.id,
+                name: data.name || 'محب للعروسين',
+                relation: data.relation || '',
+                message: data.message || '',
+                likes: data.likes || 1,
+                timestamp: data.createdAt?.toDate
+                  ? new Intl.DateTimeFormat('ar-EG', { hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short' }).format(data.createdAt.toDate())
+                  : data.timestamp || 'الآن',
+              };
+            });
+            setWishes(fetchedWishes);
+          }
+        },
+        (error) => {
+          console.warn('Firestore subscription error (fallback to local):', error);
+        }
+      );
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('Firestore init error:', e);
+    }
+  }, []);
 
-  const handleAddWish = (name: string, message: string) => {
+  const handleAddWish = async (name: string, message: string) => {
+    // 1. Optimistic update
+    const tempId = Date.now().toString();
     const newWish: WishMessage = {
-      id: Date.now().toString(),
+      id: tempId,
       name,
       message,
       likes: 1,
       timestamp: 'الآن',
     };
-    setWishes((prev) => [newWish, ...prev]);
+    setWishes((prev) => [newWish, ...prev.filter((w) => w.id !== tempId)]);
+
+    // 2. Persist to Cloud Firestore for everyone
+    try {
+      await addDoc(collection(db, 'wishes'), {
+        name,
+        message,
+        likes: 1,
+        createdAt: serverTimestamp(),
+        timestamp: 'الآن',
+      });
+    } catch (error) {
+      console.error('Error adding wish to Firestore:', error);
+    }
   };
 
-  const handleLikeWish = (id: string) => {
+  const handleLikeWish = async (id: string) => {
+    // Optimistic UI update
     setWishes((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, likes: w.likes + 1 } : w))
+      prev.map((w) => (w.id === id ? { ...w, likes: (w.likes || 0) + 1 } : w))
     );
+
+    // Update in Firestore if it is a Firestore document ID
+    try {
+      const wishRef = doc(db, 'wishes', id);
+      await updateDoc(wishRef, {
+        likes: increment(1),
+      });
+    } catch (error) {
+      console.warn('Like update note:', error);
+    }
   };
 
   return (

@@ -20,7 +20,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ details }) => {
       >
         <Sparkles className="w-3.5 h-3.5 text-[#ffd700]" />
         <span className="text-xs font-cairo font-semibold text-[#fff6d6] tracking-wide">
-          دعوة زفاف إلكترونية خاصة
+          دعوة زفاف بخالص الحب
         </span>
         <Sparkles className="w-3.5 h-3.5 text-[#ffd700]" />
       </motion.div>
